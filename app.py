@@ -142,7 +142,6 @@ def parse_renal_rule(text, egfr):
         return "可用"
     text = str(text)
     if "禁用" in text:
-        # 提取禁用条件中的数字范围
         patterns = [
             r"eGFR\s*<\s*(\d+)",
             r"<(\d+)",
@@ -235,7 +234,6 @@ def parse_hepatic_rule(text, child_pugh):
     if "Child-Pugh C" in text and child_pugh == "C级（重度损伤）":
         return "禁用"
     if "ALT" in text or "AST" in text:
-        # 肝功能异常相关，暂简单处理
         return "需监测肝功能"
     return "可用"
 
@@ -497,37 +495,6 @@ with tab3:
             else:
                 st.info("暂不需要三联治疗")
 
-        # 方案对比
-        compare_list = []
-        if len(recommendation["dual"]) > 1:
-            compare_list = recommendation["dual"]
-            level_name = "二联"
-        elif len(recommendation["triple"]) > 1:
-            compare_list = recommendation["triple"]
-            level_name = "三联"
-        if compare_list:
-            st.markdown("---")
-            st.subheader(f"{level_name}方案对比")
-            compare_data = []
-            for scheme in compare_list:
-                matched_row = df_rules[df_rules["推荐方案"].str.contains(scheme.split("+")[-1].strip(), case=False, na=False)]
-                if not matched_row.empty:
-                    row = matched_row.iloc[0]
-                    compare_data.append({
-                        "方案": scheme,
-                        "证据等级": row.get("证据等级", ""),
-                        "详细依据": row.get("详细依据", "")
-                    })
-                else:
-                    compare_data.append({
-                        "方案": scheme,
-                        "证据等级": "",
-                        "详细依据": ""
-                    })
-            if compare_data:
-                df_compare = pd.DataFrame(compare_data)
-                st.dataframe(df_compare, use_container_width=True, hide_index=True)
-
         st.markdown("---")
         st.subheader("推荐药物详细指导")
         all_recommended = recommendation["mono"] + recommendation["dual"] + recommendation["triple"]
@@ -610,7 +577,6 @@ with tab4:
             renal_advice = parse_renal_rule(renal_text, egfr)
             hepatic_advice = parse_hepatic_rule(hepatic_text, child_pugh)
 
-            # 综合判断
             if "禁用" in renal_advice or "禁用" in hepatic_advice:
                 status = "禁用"
                 color = "#FFEBEE"
