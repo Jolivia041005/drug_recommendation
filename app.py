@@ -276,9 +276,53 @@ if treatment_stage == "单药治疗 ≥3个月":
 elif treatment_stage == "二联治疗 ≥3个月":
     hba1c_after_dual = st.number_input("二联后 HbA1c (%)", 5.0, 15.0, 7.8, step=0.1)
 
-run_recommend = st.button("生成推荐方案", type="primary", use_container_width=True)
+# 生成个性化药物推荐
+def generate_recommendation():
+    with st.spinner("正在根据指南分析..."):
+        recommendation = recommend_drugs(
+            age=age,
+            bmi=bmi,
+            hba1c_current=hba1c_current,
+            has_ascvd=has_ascvd,
+            has_hf=has_hf,
+            has_ckd=has_ckd,
+            high_hypo_risk=high_hypo_risk,
+            postprandial_high=postprandial_high,
+            insulin_resistance=insulin_resistance,
+            beta_cell_good=beta_cell_good,
+            met_intolerance=met_intolerance,
+            treatment_stage=treatment_stage,
+            hba1c_after_single=hba1c_after_single,
+            hba1c_after_dual=hba1c_after_dual
+        )
+        # 保存到 session_state
+        st.session_state['recommendation'] = recommendation
+        # 同时保存患者特征，以便规则匹配
+        patient_features = {
+            "age": age,
+            "bmi": bmi,
+            "hba1c_current": hba1c_current,
+            "has_ascvd": has_ascvd,
+            "has_hf": has_hf,
+            "has_ckd": has_ckd,
+            "high_hypo_risk": high_hypo_risk,
+            "postprandial_high": postprandial_high,
+            "insulin_resistance": insulin_resistance,
+            "beta_cell_good": beta_cell_good,
+            "met_intolerance": met_intolerance,
+            "treatment_stage": treatment_stage,
+            "single_failure": recommendation["single_failure"],
+            "dual_failure": recommendation["dual_failure"],
+            "initial_high": (treatment_stage == "未用药/初始治疗" and hba1c_current >= 7.5)
+        }
+        st.session_state['patient_features'] = patient_features
+        # 同时保存单药/二联后的HbA1c，以便用于规则匹配（可选）
+        st.session_state['hba1c_after_single'] = hba1c_after_single
+        st.session_state['hba1c_after_dual'] = hba1c_after_dual
 
-# 主页面Tab
+run_recommend = st.button("生成推荐方案", type="primary", use_container_width=True, on_click=generate_recommendation)
+
+# 主页面
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "药物信息浏览",
     "药物对比分析",
@@ -374,42 +418,28 @@ with tab3:
     st.subheader("个体化用药推荐")
     st.caption("基于《中国糖尿病防治指南（2024版）》及《成人2型糖尿病口服降糖药联合治疗专家共识（2025版）》")
 
-    if run_recommend:
-        with st.spinner("正在根据指南分析..."):
-            recommendation = recommend_drugs(
-                age=age,
-                bmi=bmi,
-                hba1c_current=hba1c_current,
-                has_ascvd=has_ascvd,
-                has_hf=has_hf,
-                has_ckd=has_ckd,
-                high_hypo_risk=high_hypo_risk,
-                postprandial_high=postprandial_high,
-                insulin_resistance=insulin_resistance,
-                beta_cell_good=beta_cell_good,
-                met_intolerance=met_intolerance,
-                treatment_stage=treatment_stage,
-                hba1c_after_single=hba1c_after_single,
-                hba1c_after_dual=hba1c_after_dual
-            )
-
-        patient_features = {
-            "age": age,
-            "bmi": bmi,
-            "hba1c_current": hba1c_current,
-            "has_ascvd": has_ascvd,
-            "has_hf": has_hf,
-            "has_ckd": has_ckd,
-            "high_hypo_risk": high_hypo_risk,
-            "postprandial_high": postprandial_high,
-            "insulin_resistance": insulin_resistance,
-            "beta_cell_good": beta_cell_good,
-            "met_intolerance": met_intolerance,
-            "treatment_stage": treatment_stage,
-            "single_failure": recommendation["single_failure"],
-            "dual_failure": recommendation["dual_failure"],
-            "initial_high": (treatment_stage == "未用药/初始治疗" and hba1c_current >= 7.5)
-        }
+    if 'recommendation' in st.session_state:
+        recommendation = st.session_state['recommendation']
+        patient_features = st.session_state.get('patient_features', {})
+        if not patient_features:
+            patient_features = {
+                "age": age,
+                "bmi": bmi,
+                "hba1c_current": hba1c_current,
+                "has_ascvd": has_ascvd,
+                "has_hf": has_hf,
+                "has_ckd": has_ckd,
+                "high_hypo_risk": high_hypo_risk,
+                "postprandial_high": postprandial_high,
+                "insulin_resistance": insulin_resistance,
+                "beta_cell_good": beta_cell_good,
+                "met_intolerance": met_intolerance,
+                "treatment_stage": treatment_stage,
+                "single_failure": recommendation["single_failure"],
+                "dual_failure": recommendation["dual_failure"],
+                "initial_high": (treatment_stage == "未用药/初始治疗" and hba1c_current >= 7.5)
+            }
+            st.session_state['patient_features'] = patient_features
 
         scenario, evidence_level, evidence_detail, trigger = find_matching_rule(
             df_rules, recommendation, patient_features
