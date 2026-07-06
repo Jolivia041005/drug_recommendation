@@ -528,31 +528,66 @@ with tab3:
             else:
                 st.info("暂不需要三联治疗")
 
-        # 推荐药物
+        # 推荐药物详细指导
         st.markdown("---")
         st.subheader("推荐药物详细指导")
+        
+        category_keywords = {"DPP-4i", "SGLT2i", "SU", "GLN", "AGi", "TZD", "GKA", "GLP-1RA", "pan-PPARA", "双胍类"}
 
         all_recommended_raw = recommendation["mono"] + recommendation["dual"] + recommendation["triple"]
-        single_drugs = set()
+        valid_drugs_set = set()
+        invalid_categories_set = set()
+
         for item in all_recommended_raw:
             # 按常见分隔符拆分
-            import re
             parts = re.split(r'[+、，, 或]', item)
             for p in parts:
                 p = p.strip()
-                if p and p != "":
-                    single_drugs.add(p)
+                if not p:
+                    continue
 
-        valid_drugs = [d for d in single_drugs if d in df_drugs["drug_name_cn"].values]
-        invalid_drugs = [d for d in single_drugs if d not in df_drugs["drug_name_cn"].values]
+                if p in df_drugs["drug_name_cn"].values:
+                    valid_drugs_set.add(p)
+                    continue
 
-        if invalid_drugs:
-            st.info(f"以下推荐为药物类别（{', '.join(invalid_drugs)}），无法查看单一药物详情，请参照推荐组合中的具体药物选择。")
+                match = re.search(r'（([^）]+)）', p)
+                if match:
+                    inner = match.group(1).strip()
+                    if inner in df_drugs["drug_name_cn"].values:
+                        valid_drugs_set.add(inner)
+                        continue
+                    found = False
+                    for drug in df_drugs["drug_name_cn"].values:
+                        if inner in drug or drug in inner:
+                            valid_drugs_set.add(drug)
+                            found = True
+                            break
+                    if found:
+                        continue
+
+                clean_p = re.sub(r'[（()）]', '', p).strip()
+                if clean_p in category_keywords:
+                    invalid_categories_set.add(clean_p)
+                    continue
+
+                found = False
+                for drug in df_drugs["drug_name_cn"].values:
+                    if clean_p in drug or drug in clean_p:
+                        valid_drugs_set.add(drug)
+                        found = True
+                        break
+                if found:
+                    continue
+
+        valid_drugs = sorted(list(valid_drugs_set))
+
+        if invalid_categories_set:
+            st.info(f"以下推荐为纯药物类别（{', '.join(sorted(invalid_categories_set))}），无法查看单一药物详情，请参照具体药物名称。")
 
         if valid_drugs:
             guide_drug = st.selectbox(
                 "选择推荐中的具体药物查看详细指导卡片",
-                ["请选择"] + sorted(valid_drugs),
+                ["请选择"] + valid_drugs,
                 key="guide_in_tab3"
             )
             if guide_drug and guide_drug != "请选择":
@@ -588,6 +623,9 @@ with tab3:
                     st.info(f"未找到 {guide_drug} 的详细信息")
         else:
             st.info("暂无具体的推荐药物可查看详情")
+
+    else:
+        st.info("请填写患者特征后，点击「生成推荐方案」")
 
 # 肝肾功能剂量调整
 with tab4:
