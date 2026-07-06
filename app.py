@@ -528,19 +528,35 @@ with tab3:
             else:
                 st.info("暂不需要三联治疗")
 
+        # 推荐药物
         st.markdown("---")
         st.subheader("推荐药物详细指导")
-        all_recommended = recommendation["mono"] + recommendation["dual"] + recommendation["triple"]
-        if all_recommended:
+
+        all_recommended_raw = recommendation["mono"] + recommendation["dual"] + recommendation["triple"]
+        single_drugs = set()
+        for item in all_recommended_raw:
+            # 按常见分隔符拆分
+            import re
+            parts = re.split(r'[+、，, 或]', item)
+            for p in parts:
+                p = p.strip()
+                if p and p != "":
+                    single_drugs.add(p)
+
+        valid_drugs = [d for d in single_drugs if d in df_drugs["drug_name_cn"].values]
+        invalid_drugs = [d for d in single_drugs if d not in df_drugs["drug_name_cn"].values]
+
+        if invalid_drugs:
+            st.info(f"以下推荐为药物类别（{', '.join(invalid_drugs)}），无法查看单一药物详情，请参照推荐组合中的具体药物选择。")
+
+        if valid_drugs:
             guide_drug = st.selectbox(
-                "选择推荐中的药物查看详细指导卡片",
-                ["请选择"] + all_recommended,
+                "选择推荐中的具体药物查看详细指导卡片",
+                ["请选择"] + sorted(valid_drugs),
                 key="guide_in_tab3"
             )
             if guide_drug and guide_drug != "请选择":
-                clean_name = guide_drug.split("+")[-1].strip().split("（")[0].strip()
-                matched = df_drugs[df_drugs["drug_name_cn"].str.contains(clean_name) |
-                                   df_drugs["drug_name_en"].str.contains(clean_name, case=False)]
+                matched = df_drugs[df_drugs["drug_name_cn"] == guide_drug]  # 精确匹配
                 if not matched.empty:
                     row = matched.iloc[0]
                     st.markdown(
@@ -571,9 +587,7 @@ with tab3:
                 else:
                     st.info(f"未找到 {guide_drug} 的详细信息")
         else:
-            st.info("暂无推荐药物")
-    else:
-        st.info("请填写患者特征后，点击「生成推荐方案」")
+            st.info("暂无具体的推荐药物可查看详情")
 
 # 肝肾功能剂量调整
 with tab4:
