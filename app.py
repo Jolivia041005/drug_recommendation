@@ -72,14 +72,17 @@ def evaluate_condition(condition_str, features):
     sub_conditions = condition_str.split(" 或 ")
     for cond in sub_conditions:
         cond = cond.strip()
+        numbers = re.findall(r'(\d+\.?\d*)', cond)
         if "BMI ≥" in cond:
-            threshold = float(cond.split("≥")[-1].strip())
-            if features.get("bmi", 0) >= threshold:
-                return True
+            if numbers:
+                threshold = float(numbers[0])
+                if features.get("bmi", 0) >= threshold:
+                    return True
         elif "年龄≥" in cond:
-            threshold = float(cond.split("≥")[-1].strip())
-            if features.get("age", 0) >= threshold:
-                return True
+            if numbers:
+                threshold = float(numbers[0])
+                if features.get("age", 0) >= threshold:
+                    return True
         elif "合并ASCVD" in cond or "ASCVD" in cond:
             if features.get("has_ascvd", False):
                 return True
