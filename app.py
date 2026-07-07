@@ -634,7 +634,7 @@ with tab4:
         """
         <div style="border:1px solid #FF9800; border-radius:6px; padding:12px; background-color:#FFF8E1; margin-bottom:16px;">
             <strong>功能说明：</strong>输入患者的肾功能（eGFR）和肝功能分级，系统将自动根据CSV中的剂量调整建议，判断每种降糖药是否需要调整剂量或禁用。
-            数据来源于《成人2型糖尿病口服降糖药联合治疗专家共识（2025版）》表3。
+            数据来源于《成人2型糖尿病口服降糖药联合治疗专家共识（2025版）》,  eGFR 数值对应分级基于 KDIGO 指南的 CKD 分期推荐的代表性值。
         </div>
         """,
         unsafe_allow_html=True
@@ -666,6 +666,10 @@ with tab4:
                 status = "禁用"
                 color = "#FFEBEE"
                 border = "#F44336"
+            elif hepatic_advice == "需监测肝功能":
+                status = "减量慎用"
+                color = "#FFF8E1"
+                border = "#FF9800"
             elif "减量慎用" in renal_advice or "减量慎用" in hepatic_advice or "慎用" in renal_advice or "慎用" in hepatic_advice:
                 status = "减量慎用"
                 color = "#FFF8E1"
