@@ -640,11 +640,13 @@ with tab4:
         unsafe_allow_html=True
     )
 
-    # 肾功能
+    # ----- 修正后的肾功能解析函数 -----
     def parse_renal_rule(text, egfr):
         if pd.isna(text) or text == "" or text == "可用":
             return "可用"
         text = str(text)
+
+        # 禁用
         if "禁用" in text:
             patterns = [
                 r"eGFR\s*<\s*(\d+)",
@@ -657,19 +659,18 @@ with tab4:
                 for m in matches:
                     if isinstance(m, tuple):
                         if len(m) == 1:
-                            threshold = float(m[0])
-                            if egfr < threshold:
+                            if egfr < float(m[0]):
                                 return "禁用"
                         elif len(m) == 2:
                             low, high = float(m[0]), float(m[1])
                             if low <= egfr <= high:
                                 return "禁用"
                     else:
-                        threshold = float(m)
-                        if egfr < threshold:
+                        if egfr < float(m):
                             return "禁用"
-            return "禁用" 
+            # 有"禁用"但无数值匹配，不返回禁用，继续
 
+        # 减量慎用 / 减量
         if "减量慎用" in text or "减量" in text:
             patterns = [
                 r"eGFR\s*(\d+)\s*-\s*(\d+)\s*减量",
@@ -686,11 +687,11 @@ with tab4:
                             if low <= egfr <= high:
                                 return "减量慎用"
                     else:
-                        threshold = float(m)
-                        if egfr < threshold:
+                        if egfr < float(m):
                             return "减量慎用"
-            return "减量慎用"
+            # 有"减量"但无数值，不返回
 
+        # 慎用（不含"减量"）
         if "慎用" in text and "减量" not in text:
             patterns = [
                 r"eGFR\s*<\s*(\d+)",
@@ -703,22 +704,21 @@ with tab4:
                 for m in matches:
                     if isinstance(m, tuple):
                         if len(m) == 1:
-                            threshold = float(m[0])
-                            if egfr < threshold:
+                            if egfr < float(m[0]):
                                 return "慎用"
                         elif len(m) == 2:
                             low, high = float(m[0]), float(m[1])
                             if low <= egfr <= high:
                                 return "慎用"
                     else:
-                        threshold = float(m)
-                        if egfr < threshold:
+                        if egfr < float(m):
                             return "慎用"
-            return "慎用" 
+            # 有"慎用"但无数值，保守返回"慎用"
+            return "慎用"
 
         return "可用"
 
-    # 肝功能
+    # ----- 肝功能解析（已修正） -----
     def parse_hepatic_rule(text, child_pugh):
         if pd.isna(text) or text == "" or text == "可用":
             return "可用"
@@ -752,6 +752,7 @@ with tab4:
 
         return "可用"
 
+    # ----- 用户输入 -----
     col1, col2 = st.columns(2)
     with col1:
         egfr = st.number_input("eGFR (mL/min/1.73m²)", min_value=0, max_value=120, value=60, step=5)
@@ -774,7 +775,6 @@ with tab4:
             renal_advice = parse_renal_rule(renal_text, egfr)
             hepatic_advice = parse_hepatic_rule(hepatic_text, child_pugh)
 
-            # 综合建议
             if "禁用" in renal_advice or "禁用" in hepatic_advice:
                 status = "禁用"
                 color = "#FFEBEE"
@@ -821,7 +821,7 @@ with tab4:
             )
 
         st.caption("提示：具体建议根据CSV字段解析，如有疑问请参考药品说明书。")
-
+        
 # 药物相互作用检查
 with tab5:
     st.subheader("药物相互作用检查")
