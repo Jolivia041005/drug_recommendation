@@ -697,12 +697,19 @@ with tab4:
             return "可用"
         text = str(text)
 
+        if child_pugh == "不详/未评估":
+            return "可用"
+
+        if "中度以上禁用" in text:
+            if child_pugh in ["B级（中度损伤）", "C级（重度损伤）"]:
+                return "禁用"
+            else:
+                return "可用"
+
         if "Child-Pugh A/B可用" in text and child_pugh in ["A级（轻度损伤）", "B级（中度损伤）"]:
             return "可用"
-        if "Child-Pugh C" in text and child_pugh == "C级（重度损伤）":
-            return "禁用"
 
-        if "中度以上禁用" in text and child_pugh in ["B级（中度损伤）", "C级（重度损伤）"]:
+        if "Child-Pugh C" in text and child_pugh == "C级（重度损伤）":
             return "禁用"
 
         if "可用（A/B/C级" in text:
@@ -710,7 +717,7 @@ with tab4:
 
         if "ALT" in text or "AST" in text:
             return "需监测肝功能"
-        
+
         if "禁用" in text:
             return "禁用"
         if "减量" in text or "减量慎用" in text:
@@ -742,6 +749,7 @@ with tab4:
             renal_advice = parse_renal_rule(renal_text, egfr)
             hepatic_advice = parse_hepatic_rule(hepatic_text, child_pugh)
 
+            # 综合建议判断
             if "禁用" in renal_advice or "禁用" in hepatic_advice:
                 status = "禁用"
                 color = "#FFEBEE"
@@ -769,6 +777,7 @@ with tab4:
                 "border": border
             })
 
+        # 禁用 > 减量慎用 > 可用
         status_order = {"禁用": 0, "减量慎用": 1, "可用": 2}
         results_sorted = sorted(results, key=lambda x: status_order[x["综合建议"]])
 
