@@ -640,13 +640,13 @@ with tab4:
         unsafe_allow_html=True
     )
 
-    # ----- 修正后的肾功能解析函数 -----
+    # ----- 修正后的肾功能解析（严格基于数值） -----
     def parse_renal_rule(text, egfr):
         if pd.isna(text) or text == "" or text == "可用":
             return "可用"
         text = str(text)
 
-        # 禁用
+        # 1. 禁用（仅当满足数值条件才返回）
         if "禁用" in text:
             patterns = [
                 r"eGFR\s*<\s*(\d+)",
@@ -668,9 +668,9 @@ with tab4:
                     else:
                         if egfr < float(m):
                             return "禁用"
-            # 有"禁用"但无数值匹配，不返回禁用，继续
+            # 有“禁用”但无数值匹配 -> 不返回禁用
 
-        # 减量慎用 / 减量
+        # 2. 减量慎用 / 减量（仅当满足数值条件才返回）
         if "减量慎用" in text or "减量" in text:
             patterns = [
                 r"eGFR\s*(\d+)\s*-\s*(\d+)\s*减量",
@@ -689,9 +689,9 @@ with tab4:
                     else:
                         if egfr < float(m):
                             return "减量慎用"
-            # 有"减量"但无数值，不返回
+            # 有“减量”但无数值匹配 -> 不返回
 
-        # 慎用（不含"减量"）
+        # 3. 慎用（不含“减量”）（仅当满足数值条件才返回）
         if "慎用" in text and "减量" not in text:
             patterns = [
                 r"eGFR\s*<\s*(\d+)",
@@ -713,10 +713,9 @@ with tab4:
                     else:
                         if egfr < float(m):
                             return "慎用"
-            # 有"慎用"但无数值，保守返回"慎用"
-            return "慎用"
+            # 有“慎用”但无数值匹配 -> 不返回（视为可用）
 
-        return "可用"
+        return "可用"   # 默认可用
 
     # ----- 肝功能解析（已修正） -----
     def parse_hepatic_rule(text, child_pugh):
@@ -727,22 +726,28 @@ with tab4:
         if child_pugh == "不详/未评估":
             return "可用"
 
+        # 中度以上禁用 -> B/C 级禁用，A 级可用
         if "中度以上禁用" in text:
             if child_pugh in ["B级（中度损伤）", "C级（重度损伤）"]:
                 return "禁用"
             else:
                 return "可用"
 
+        # Child-Pugh A/B 可用
         if "Child-Pugh A/B可用" in text and child_pugh in ["A级（轻度损伤）", "B级（中度损伤）"]:
             return "可用"
+        # Child-Pugh C 禁用
         if "Child-Pugh C" in text and child_pugh == "C级（重度损伤）":
             return "禁用"
+        # 可用（A/B/C级）
         if "可用（A/B/C级" in text:
             return "可用"
 
+        # ALT/AST 监测
         if "ALT" in text or "AST" in text:
             return "需监测肝功能"
 
+        # 通用关键词（无分级条件）
         if "禁用" in text:
             return "禁用"
         if "减量" in text or "减量慎用" in text:
@@ -821,7 +826,7 @@ with tab4:
             )
 
         st.caption("提示：具体建议根据CSV字段解析，如有疑问请参考药品说明书。")
-        
+
 # 药物相互作用检查
 with tab5:
     st.subheader("药物相互作用检查")
