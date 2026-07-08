@@ -668,6 +668,8 @@ with tab4:
                         threshold = float(m)
                         if egfr < threshold:
                             return "禁用"
+            return "禁用" 
+
         if "减量慎用" in text or "减量" in text:
             patterns = [
                 r"eGFR\s*(\d+)\s*-\s*(\d+)\s*减量",
@@ -687,8 +689,33 @@ with tab4:
                         threshold = float(m)
                         if egfr < threshold:
                             return "减量慎用"
+            return "减量慎用"
+
         if "慎用" in text and "减量" not in text:
-            return "慎用"
+            patterns = [
+                r"eGFR\s*<\s*(\d+)",
+                r"<(\d+)",
+                r"eGFR\s*(\d+)\s*-\s*(\d+)\s*慎用",
+                r"(\d+)\s*-\s*(\d+)\s*慎用"
+            ]
+            for pat in patterns:
+                matches = re.findall(pat, text)
+                for m in matches:
+                    if isinstance(m, tuple):
+                        if len(m) == 1:
+                            threshold = float(m[0])
+                            if egfr < threshold:
+                                return "慎用"
+                        elif len(m) == 2:
+                            low, high = float(m[0]), float(m[1])
+                            if low <= egfr <= high:
+                                return "慎用"
+                    else:
+                        threshold = float(m)
+                        if egfr < threshold:
+                            return "慎用"
+            return "慎用" 
+
         return "可用"
 
     # 肝功能
@@ -708,10 +735,8 @@ with tab4:
 
         if "Child-Pugh A/B可用" in text and child_pugh in ["A级（轻度损伤）", "B级（中度损伤）"]:
             return "可用"
-
         if "Child-Pugh C" in text and child_pugh == "C级（重度损伤）":
             return "禁用"
-
         if "可用（A/B/C级" in text:
             return "可用"
 
@@ -749,7 +774,7 @@ with tab4:
             renal_advice = parse_renal_rule(renal_text, egfr)
             hepatic_advice = parse_hepatic_rule(hepatic_text, child_pugh)
 
-            # 综合建议判断
+            # 综合建议
             if "禁用" in renal_advice or "禁用" in hepatic_advice:
                 status = "禁用"
                 color = "#FFEBEE"
@@ -777,7 +802,6 @@ with tab4:
                 "border": border
             })
 
-        # 禁用 > 减量慎用 > 可用
         status_order = {"禁用": 0, "减量慎用": 1, "可用": 2}
         results_sorted = sorted(results, key=lambda x: status_order[x["综合建议"]])
 
